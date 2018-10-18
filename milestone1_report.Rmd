@@ -1,0 +1,615 @@
+---
+title: "Data Science Capstone - Milestone Report"
+author: "C. McBride"
+date: "July 28, 2018"
+output: html_document
+---
+```{r message=FALSE, warning=FALSE}
+# packages
+library(igraph)
+library(hunspell)
+library(parallel)
+library(doParallel)
+library(dplyr)
+library(tidytext)
+library(ggraph)
+library(tidyr)
+
+
+```
+
+
+```{r}
+## Test processing functions
+
+# remove control characters
+rmCtrlChars <- function(l){
+  clean_l <- gsub("(?!\\r|\\n|\\t)[\\x00-\\x1f\\x80-\\x9f]", "", l, perl = T) # rm ctrl chars
+  return(clean_l)
+}
+
+# remove proper nouns
+scrubProperNouns <- function(l){
+        gsub("(?:[^.\\s!?])\\s+((?:[A-Z][-A-Za-z']*(?: *[A-Z][-A-Za-z']*)*))|(?:[^.\\s!?])\\s+([A-Z][-A-Za-z']*)", " ", l, perl = T)
+}
+
+# space punctuation away from words
+addPuncSpace <- function(l){
+        cleanL <- gsub("(?<!\\d)\\h*((?!['])[[:punct:]]+)\\h*(?!\\d)", " \\1 ", l, perl = T)
+        return(cleanL)
+}
+
+# remove single quotes,leave apostrophes in certain contractions
+cleanApostrophes <- function(l){
+        l <- gsub("['']", "'", l)
+        l <- gsub('["""]', "", l)
+        l <- gsub("^'+|\\s'+", " ", l)
+        l <- gsub("'\\s", " ", l)
+        cleanL <- gsub("'s", "", l)       
+        return(cleanL)
+}
+
+processPeriods <- function(l){
+        l <- gsub('(([^<>()\\[\\]\\.,;:\\s@"]+(\\.[^<>()\\[\\]\\.,;:\\s@"]+)*)|(".+"))@((\\[[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\])|(([a-zA-Z\\-0-9]+\\.)+[a-zA-Z]{2,}))', '', l, perl = T)
+        l <- gsub('(?<!\\w)([A-Za-z])\\.', '', l, perl = T)       
+        cleanL <- gsub('\\d+\\.\\d+', " ", l)        
+        return(cleanL)
+}
+
+# narrow field of characters, rm special characters
+rmSpecChars <- function(l){
+        cleanL <- gsub("[^\\x{0027}|\\x{002E}|\\x{0041}-\\x{005A}|\\x{0061}-\\x{007A}| ]",
+                  "", l, perl = T)    
+        return(cleanL)
+}
+
+# do something important (?)
+sthImportant <- function(l){
+        cleanL <- l <- gsub('\\w*\\d\\w*', "", l)
+        return(cleanL)
+}
+
+# spell check and reduce
+spellCheck <- function(ws){
+        require(hunspell)
+        spellBool <- hunspell_check(ws)
+        cleanWS <- ws[spellBool]
+        return(cleanWS)
+}
+
+# remove single letters
+rmShortWords <- function(ws){
+        bool <<- sapply(ws, function(x){ nchar(x) > 1 | x %in% c(".", "a", "A", "I") })
+        if( length(bool) == 0){ return( c() )}
+        cleanWords <- ws[bool]
+        return(cleanWords)
+}
+
+processPeriods2 <- function(l){
+        l <- gsub(" \\.{2,} ", " ", l)
+        return(l)
+}
+
+keepPropNouns <- function(l){
+        cleanWords <- parSapply(cluster, l, function(wrd){
+                ifelse(hunspell::hunspell_check(tolower(wrd)) == TRUE & wrd != "I", tolower(wrd), wrd)
+                }, USE.NAMES = FALSE)
+        return(cleanWords)
+        
+}
+
+keepPropNouns2 <- function(l){
+        cleanWords <- character(length(l))
+        for(i in 1:length(l)){
+                wrd <- l[[i]]
+                lwrwrd <- tolower(wrd)
+                if(hunspell_check(lwrwrd) == TRUE & wrd != "I"){cleanWords[i] <- lwrwrd}else{
+                        cleanWords[i] <- wrd
+                }
+        }
+        return(cleanWords)
+}
+        
+
+keepPropNouns3 <- function(l){
+        # split line into vector of words
+        l_upper <- unlist(strsplit(l, ' '))
+        
+        # get boolean from spellchecker
+        bool_upper <- hunspell_check(l_upper)
+        
+        # remove obviously misspelled words
+        l_upper <- l_upper[bool_upper]
+        
+        # remove falses from spell boolean
+        bool_upper <- bool_upper[bool_upper]
+        
+        # lowercase and check spelling again to detect proper nouns
+        l_lower <- tolower(l_upper)
+        bool_lower <- hunspell_check(l_lower)
+        
+        # add two spell booleans
+        bool_combo <- bool_upper + bool_lower
+        
+        # make list with two versions of words, normal and to_lower
+        l_both <- list(l_upper, l_lower)
+        
+        # use indexing to select correct form of prop nouns
+        cleanL <- sapply(seq_along(l_upper), function(i) paste(f, l_both[[bool_combo[i]]][i]))
+        
+        cleanL <- paste(cleanL, collapse = " ")
+        return(paste(cleanL))
+}
+
+keepPropNouns4 <- function(l){
+        cstm <- dictionary("c:/users/user 1/Documents/R/win-library/3.5/hunspell/dict/en_US.dic", cache = T)
+        
+        # split line into vector of words
+        l_upper <- unlist(strsplit(l, ' '))
+        
+        # get boolean from spellchecker
+        bool_upper <- hunspell_check(l_upper, dict = cstm)
+        
+        # remove obviously misspelled words
+        l_upper <- l_upper[bool_upper]
+        
+        # remove falses from spell boolean
+        bool_upper <- bool_upper[bool_upper]
+        
+        # lowercase and check spelling again to detect proper nouns
+        l_lower <- tolower(l_upper)
+        bool_lower <- hunspell_check(l_lower, dict = cstm)
+        
+        # add two spell booleans
+        bool_combo <- (bool_upper + bool_lower) - 1
+        
+        # combined vector with two versions of words, normal and to_lower
+        l_both <- c(l_upper, l_lower)
+        
+        # create keep boolean
+        keep_bool <- seq_along(l_lower) + bool_combo * length(l_lower)
+        
+        # use indexing to select correct form of prop nouns
+        cleanL <- l_both[keep_bool]
+        
+        return(cleanL)
+}
+
+
+```
+
+
+
+
+
+```{r}
+# batch processor 
+processBatch <- function(batch, batchSize, con, writeFileName){
+        # words <- c()
+        for(i in 1:batchSize){
+                if(i %% 1000 == 0){
+                        print(paste0("Batch: ", batch, ", Line: ", i))
+                }
+                # read individual line for processing                
+                l <- readLines(con, n=1, encoding="UTF-8")
+
+                # if line is of zero length break, end of processing escape
+                if(length(l) == 0) {break}
+
+                # processing functions
+                # l <- rmCtrlChars(l) # remove control characters
+                # l <- cleanApostrophes(l) # process apostrophes, single quotes
+                # l <- processPeriods(l) # keep full stops, rm decimals and abbrv periods
+                # l <- rmSpecChars(l) # select on unicode ranges 
+                # l <- sthImportant(l) # 
+                # l <- addPuncSpace(l) # space periods to assign as token
+                # l <- processPeriods2(l) # remove piles of periods
+                
+                # split processed string
+                # splitL <- strsplit(l, " ")
+                # splitL <- unlist(splitL)
+                
+                # spellcheck and remove unknown words
+                # spellChecked <- spellCheck(splitL)
+                
+                
+                
+                # if (length(spellChecked) == 0) {next}
+
+                # process proper nouns
+                finStrings <- keepPropNouns4(l)
+                
+                # remove words of length=1
+                cleanWords <- rmShortWords(finStrings)
+                
+                # throw out short lines
+                if (length(cleanWords) < 5) {next}                
+                
+                # add new words to unique words list
+                # words <- union(words, keepPropNouns2(cleanWords))
+                
+                # write processed sentences to new clean document
+                write(paste(cleanWords, collapse = ' '), writeFileName, append=TRUE)
+                
+        }
+        # return(words)
+}
+```
+
+```{r}
+# call processor on batches
+doBatches <- function(batchCount, con, batchSize, writeFileName){ # , writeDir, logDir
+        job_start_time <- Sys.time()
+        print(paste("Cleaner job start time:", job_start_time))
+        for(batch in seq(1:batchCount)){
+                start_time <- Sys.time()
+                # wordSet <- processBatch(batch, n, con)
+                processBatch(batch, batchSize, con, writeFileName)
+                # dfWords <- data.frame(wordSet)
+                # wordPath <- paste0(writeDir, "/tokens", batch, ".csv")
+                # write.csv(dfWords, file = wordPath)
+                end_time <- Sys.time()
+                print(paste("Batch", batch, "complete","-", "start:", start_time, "end:", end_time, "elapsed:", end_time - start_time, "mins."))
+        } 
+        job_end_time <- Sys.time()
+        print(paste("Cleaner job end time:", job_end_time))
+        print(paste("Total elapsed time:", round(job_end_time - job_start_time, 2), "hrs."))
+}
+
+```
+
+```{r}
+# path
+# filepath <- "english_us/en_US_news2.txt"
+filepath <- "english_twitter_clean.txt"
+# filepath <- "eng_news_clean.txt"
+# filepath <- "english_us/en_US_twitter.txt"
+
+# get file line count
+lineCountNews <- system('find /c /v "" english_twitter_clean.txt', intern = T)[2]
+batchCount <- ceiling(as.integer(unlist(strsplit(lineCountNews, ": "))[2])/10000)
+
+# check for then rm file
+# writeFileName <- "english_news_clean.txt"
+writeFileName <- "english_twitter_squeaky_clean.txt"
+# writeFileName <- "english_twitter_clean.txt"
+try(if (file.exists(writeFileName)) file.remove(writeFileName))
+
+# Reset and create connection handle
+try(close(con))
+con <- file(description=filepath, open="rb")
+
+# number of lines per batch
+batchSize = 10000
+
+# check for, if not create tokens file
+# tokensDir <- "tokens_news"
+# dir.create(tokensDir)
+
+# create logs directory
+# logDir <- "batchlogs"
+# dir.create(logDir)
+
+# set up parallel processing
+# cluster <- makeCluster(detectCores() - 1)
+
+
+# call batch processor
+doBatches(batchCount, con, batchSize, writeFileName)
+
+# clean up parallel processing
+# stopCluster(cluster)
+```
+
+```{r}
+tokenizeWords <- function(batch, batchSize, con){
+        wordSet <- c()
+        for( i in 1:batchSize){
+                if(i %% 250 == 0){
+                        print(paste0("Batch: ", batch, ", Line: ", i))
+                }
+                
+                # read input 
+                l <- readLines(con = con, n = 1, encoding="UTF-8")
+                
+                # check for end of data
+                if(length(l) == 0) {break}
+                
+                # split string to vector, get unique tokens
+                split_string <- unlist(strsplit(l, ' '))
+                new_words <- unique(split_string)
+                
+
+                # union with existing token list
+                wordSet <- union(wordSet, new_words)
+        }
+        # path
+        pth <- 'c://users/conner/jhopkins_data_science/capstone/final/token_lists/' 
+
+        # write batch unique tokens to csv
+        new_words <- data.frame(wordSet)
+        names(new_words) <- NULL
+
+        write.csv(wordSet, paste0(pth, "tokens_", batch, ".csv"),
+                  row.names = FALSE)
+}
+
+
+
+```
+
+```{r}
+# call tokenizer on batches
+tokenizeBatches <- function(batchCount, batchSize, con){ # , writeDir, logDir
+        job_start_time <- Sys.time()
+        print(paste("Tokenizer job start time:", job_start_time))
+        for(batch in 151:(151+batchCount)){
+                print(batch)
+                start_time <- Sys.time()
+                tokenizeWords(batch, batchSize, con)
+                end_time <- Sys.time()
+                print(paste("Batch", batch, "complete","-", "start:", start_time, "end:", end_time, "elapsed:", end_time - start_time))
+        } 
+        job_end_time <- Sys.time()
+        print(paste("Cleaner job end time:", job_end_time))
+        print(paste("Total elapsed time:", round(job_end_time - job_start_time, 2)))
+}
+```
+
+```{r}
+# source file paths
+# filepath <- "english_twitter_squeaky_clean.txt"
+# filepath <- "english_news_squeaky_clean.txt"
+filepath <- "english_blogs_squeaky_clean.txt"
+
+# define batch size
+batchSize <- 20000
+
+# get file line count
+lineCount <- system(paste('find /c /v ""', filepath), intern = T)[2]
+batchCount <- ceiling(as.integer(unlist(strsplit(lineCount, ": "))[2])/batchSize)
+
+# make connection
+try(close(con))
+con <- file(description=filepath, open="rb")
+
+tokenizeBatches(batchCount, batchSize, con)
+
+# clean up
+try(close(con))
+```
+
+```{r}
+# union function for condensing all subsets into single list of unique tokens
+getUniqueWords <- function(files){
+        all_words <- c()
+        growth <- c()
+        for (f in files){
+                word_set <- read.csv(f, header = F)
+                word_set <- as.character(unlist(word_set))
+                all_words <- union(all_words, word_set)
+                growth <- c(growth, length(all_words))
+        }
+        results <- list(words = all_words, stats = growth)
+        return(results)
+}
+```
+
+
+
+```{r}
+# clean up any latent connections
+try(closeAllConnections())
+
+setwd("token_lists")
+
+# get list of all token lists
+token_lists <- list.files(path = ".")
+
+# run union function
+allWords <- getUniqueWords(token_lists)
+
+# set milestone
+save(allWords, file = "allWords.R")
+
+```
+
+```{r}
+# plot growth of word list
+plot(allWords$stats, pch = 21, col = "skyblue",
+     main = "Growth of Unique Token List by Subset Addition",
+     xlab = "Subsets", ylab = "Number of Unique Tokens")
+```
+```{r}
+# create hash env
+token2int_hash = new.env(hash = T, parent = emptyenv(), size = 500L)
+int2token_hash = new.env(hash = T, parent = emptyenv(), size = 500L)
+
+# populate has with token-integer pairs
+populateHash <- function(uniqueTokens){
+        i <- 1
+        for (t in uniqueTokens){
+                assign(t, as.character(i), token2int_hash)
+                assign(as.character(i), t, int2token_hash)
+                i <- (i + 1)
+        }
+}
+
+populateHash(allWords$words)
+```
+
+
+```{r}
+# create token to integer mapping
+token2int <- as.list(setNames(seq_along(allWords$words), allWords$words), allWords$words)
+
+# create integer to token reverse mapping
+int2token <- as.list(setNames(allWords$words, seq_along(allWords$words)), allWords$words)
+
+# save token-integer maps
+save(token2int, file = "token2int.R")
+save(int2token, file = "int2token.R")
+```
+
+```{r}
+# get stats
+cat("Vector of unique tokens:",format(object.size(allWords$words), units = "MB"), 
+    "Number of tokens:", length(allWords$words) ) 
+cat("\nToken-to-integer list:", format( object.size(token2int), units = "MB" ),
+    "Number of tokens:", length(token2int))
+cat("\nInteger-to-token list:", format( object.size(int2token), units = "MB" ),
+    "Number of tokens:", length(int2token), "\n")
+
+print(length(token2int) == length(int2token) & length(int2token) == length(allWords$words))
+
+```
+
+```{r}
+# batch processor 
+integerizeBatches <- function(batch, batchSize, con, writeFileName){
+        for(i in 1:batchSize){
+                if(i %% 1000 == 0){
+                        print(paste0("Batch: ", batch, ", Line: ", i))
+                }
+                # read individual line for processing                
+                l <- readLines(con, n=1, encoding="UTF-8")
+
+                # if line is of zero length break, end of processing escape
+                if(length(l) == 0) {break}
+
+                
+                # split and flatten
+                splitL <- strsplit(l, " ")
+                splitL <- unlist(splitL)
+
+                # convert tokens into integer assignments
+                intEquivs <- unlist(mget(splitL, token2int_hash))
+                
+                # paste ints into new string
+                intStr <- paste(intEquivs, collapse = ' ')
+                
+                # write processed sentences to new clean document
+                write(intStr, writeFileName, append=TRUE)
+        }
+}
+```
+
+```{r}
+words2integers <- function(batchCount, con, batchSize, writeFileName){ # , writeDir, logDir
+        job_start_time <- Sys.time()
+        print(paste("Integerizer job start time:", job_start_time))
+        for(batch in seq(1:batchCount)){
+
+                integerizeBatches(batch, batchSize, con, writeFileName)
+
+                end_time <- Sys.time()
+                print(paste("Batch", batch, "complete","-", "start:", start_time, "end:", end_time, "elapsed:", end_time - start_time, "mins."))
+        } 
+        job_end_time <- Sys.time()
+        print(paste("Integerizer job end time:", job_end_time))
+        print(paste("Total elapsed time:", round(job_end_time - job_start_time, 2), "hrs."))
+}
+```
+
+
+```{r}
+# source file paths
+# filepath <- "english_twitter_squeaky_clean.txt"
+# filepath <- "english_news_squeaky_clean.txt"
+filepath <- "english_blogs_squeaky_clean.txt"
+
+# write file paths
+# writeFileName <- "english_twitter_integerized.txt"
+# writeFileName <- "english_news_integerized.txt"
+writeFileName <- "english_blogs_integerized.txt"
+
+# delete writeFile if already exists
+try(if (file.exists(writeFileName)) file.remove(writeFileName))
+
+# define batch size
+batchSize <- 5000
+
+# get file line count
+lineCount <- system(paste('find /c /v ""', filepath), intern = T)[2]
+batchCount <- ceiling(as.integer(unlist(strsplit(lineCount, ": "))[2])/batchSize)
+
+# make connection
+try(close(con))
+con <- file(description=filepath, open="rb")
+
+words2integers(batchCount, con, batchSize, writeFileName)
+
+# clean up
+try(close(con))
+```
+
+```{r}
+
+# subset tweets file, find most frequent bigrams, create graph
+getGraph <- function(path){
+
+        # graph n-grams
+        lines2table <- read.table(path, 
+                                 sep = "\n", col.names = c("lines"))        
+        
+        # reduce size of sample
+        lines2table <- lines2table %>%
+                sample_n(size = 100000)
+        
+        # test n-gram tokenizer
+        bigrams <- lines2table %>%
+                unnest_tokens(bigram, lines, token = "ngrams", n = 2)        
+        
+        # separate bigram into two columns
+        bigrams_filtered <- bigrams %>%
+                separate(bigram, c("words1", "words2"), sep = " ") %>%
+                filter(!words1 %in% stop_words$word) %>%
+                filter(!words2 %in% stop_words$word)   
+        
+        # get bigram counts
+        bigram_counts <- bigrams_filtered %>%
+                count(words1, words2, sort = TRUE)
+        
+        
+        # filter for higher frequecy bigrams
+        bigram_graph <- bigram_counts %>%
+                filter(n > 50) %>%
+                graph_from_data_frame()
+        
+        return(bigram_graph)
+        
+}
+
+# source files
+twitterPath <- "english_twitter_squeaky_clean.txt"
+newsPath <- "english_news_squeaky_clean.txt"
+blogPath <- "english_blog_squeaky_clean.txt"
+
+```
+
+```{r}
+# get graphs for each NL sample
+tweets_graph <- getGraph(twitterPath)
+news_graph <- getGraph(newsPath)
+blog_graph <- getGraph(blogPath)
+
+# benchmark - save graphs
+save(tweets_graph, file = "tweets_graph.R")
+save(news_graph, file = "news_graph.R")
+save(blog_graph, file = "blog_graph.R")
+```
+
+
+```{r}
+# set random seed for reproducibility
+set.seed(2453)
+
+# plot graph of bigrams
+ggraph(tweets_graph, layout = "fr") +
+        geom_edge_link() +
+        geom_node_point() +
+        geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+        theme_void()
+  
+```
+
