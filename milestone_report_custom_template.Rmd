@@ -1,0 +1,181 @@
+---
+title: "EDA Report and App Implementation Plan"
+author: "C. McBride"
+date: "October 27, 2018"
+output:
+  MyTemplates::my_html_format:
+    toc: true
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+```{r include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(tidytext)
+library(ggplot2)
+library(igraph)
+library(ggraph)
+library(knitr)
+library(kableExtra)
+library(stringr)
+library(readr)
+library(gridExtra)
+```
+# Executive Summary
+
+Predictive machine learning in natural language processing is a challenging problem that requires large volumes of sample input in order to yield a reliable and widely applicable model. A predictive text feature for a keyboard must model the influence of semantic context and the impact of preceding words in a sentence on the likelihood of what word  will come next. Any such model will need to take into account not simply the likelihood of bi-grams or trigrams, but much longer sequences of words, while remaining nimble enough to calculate subsequent words quickly. 
+
+This report describes the EDA performed on the three large natural language sample input files provided for the capstone project. The summary includes descriptive count stats for the raw file, the cleaning and wrangling steps involved in process the text, and descriptive stat for the cleaned files. 
+
+Finally, the report will give a high-level overview of the predictive modeling algorithm to be used and discuss some of the challenges likely to arise in creating a model of nearly unbound event space using large datasets.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# load pre-calculated text file stats
+load("allResults.RData")
+load("diffResults.RData")
+
+```
+
+## Overview of Raw Text Files
+
+The three text files provided with the project assignment have on the order of millions of lines authentic written language. The three files represent distinct usage, registers, and lexical varieties across a range of social and linguistic contexts. Below, in tabular format, are count stats on the contents of the files. 
+
+<br>
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.align='center'}
+# load precalculated file stats
+load("rawResults.RData")
+
+# output stats tables
+kable(rawResults, align = 'c', format.args = list(big.mark = ","),
+      caption = "Counts stats for input files prior to cleaning.",
+      longtable = TRUE) %>%
+        kable_styling(position = 'center')
+
+```
+
+<br>
+
+The files contain raw text that has not been processed in any way. In all three cases, issues with formatting, encoding, and atypical characters would significantly impact the modeling process unless dealt with before hand. To accomplish this, a data cleaning and reformatting function has been implemented.
+
+## Data Cleaning
+
+The text files required several cleaning steps to prepare them as input to the modeling algorithm. The cleaning process followed these steps:
+
+<br>
+
+        1. Remove all control characters and set format to `UTF-8`.
+        2. Remove all punctuation except full stops and apostrophes used in contractions.
+        3. Remove all special characters.
+        4. Spellcheck each word using `hunspell` and remove misspelled words. 
+        5. Remove lines with fewer than five words.
+        6. Set case for all words to minuscule (lowercase) except for 'I' and
+        all words that are used exclusively as proper nouns.
+        7. Tokenize words and full stops.
+
+<br>
+
+The cleaning process ended up representing a large investment in time and computing resource that will ultimately facilitate the implementation of the modeling algorithm. It's not yet clear, however, if the cleaning will actually improve the final model.
+
+Post-cleaning stats provide some insight into the content of the files with the shifts in count stats providing a clue to what was removed from each file during cleaning. For example, the Twitter files shows the largest proportional drop in all three stats, likely because many tweets were fewer than five words and contained words that weren't in the spell-check dictionary used in step 4 of the cleaning process. All the files are still large enough to train for modeling purposes.
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# get precalculated pre- and post-cleaning proportional stats
+load("diffResults.RData")
+
+# output stats tables
+kable(diffResults, align = 'c', format.args = list(big.mark = ","),
+      caption = "Counts for input files before and after cleaning.",
+      longtable = TRUE) %>%
+        kable_styling(position = 'center')
+```
+
+<br>
+
+A look at the most frequent words shows that, as intended, the files cover unique lexical areas with some interesting overlap. Social (e.g. _people_) and temporal (e.g. _time_) themes are repeated across all three files. In contrast, to the Blogs and Twitter files, which capture sentiment (e.g. _love_), the News file appears more quantitive (e.g. _percent_). 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# load pre-calculated word frequencies
+freqTbl <- read_csv("file_word_freqs.csv")[1:10,]
+names(freqTbl) <- rep(c("word", "n ="), 3)
+
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# output word frequency table
+kable(freqTbl,align = c('r', 'c', 'r', 'c', 'r', 'c'),
+      longtable = TRUE) %>%
+        kable_styling("bordered") %>%
+        add_header_above(c("News File" = 2, 
+                         "Twitter File" = 2,
+                         "Blogs File" = 2),
+                         bold = T) 
+```
+
+<br>
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# load td_idf table
+load("tf_idf.RData")
+
+```
+
+
+# Algorithm Design & Implementation
+
+## Overview
+
+A typing predictor calculates the mostly likely next word, \(w_{i+1}\) using calculations that depend on word sequence precedent seen within prior sample input. A basic model for this is the n-gram, which relies on a compiled "vocabulary" of n-grams of different n-values to calculate the probability of \(w_{i+1}\).
+
+As the histogram below show, the vast majority of bigrams are low frequency (<=2). The same is true for single words and longer n-grams.This low frequency makes if more difficult to build an accurate model and requires that large volumes of sample data be procured.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, out.width='85%', fig.align='center'}
+
+# load data
+load("tf_idf.RData")
+
+# create histogram of word frequencies
+hist(tf_idf[tf_idf$n < 20 & tf_idf$n > 1,]$n, xlim = range(0, 20),
+     xlab = "Frequency of a Bigram in Files", 
+     ylab = "Number of Bigrams with Given Frequency", 
+     main = "Count of Bigrams by Their Frequency in Input Files",
+     col = "skyblue4")
+mtext("x-axis > 1 to improve frequency contrast", 
+      col = "dodgerblue4", cex = 0.75, line = 0.5)
+```
+
+For the predictive algorithm, I've settled on a deep neural network model, that captures the probabilities of n-grams without having to compile, cache, or search a vocabulary of n-grams, which can grow quite large and be slow to query. Despite the high initial investment in time and computing resources, such a model should remain light-weight enough after training to offer fast predictive response to type word sequences. 
+
+To capture the context of a sentence beyond a simple bigram, a special type of neural network is called for, a recurring neural network or RNN. An RNN differs from other, feed-forward, neural networks in that information is fed looped back into the network, lending something of context memory to a sequence modeler. 
+
+To implement and train the neural network, the following steps will be followed:
+
+<br>
+
+        1. Complete further data cleaning in response to new issues that arose during EDA.
+        2. Create extracts of three text files for reduced-scale testing.
+        3. Write batching algorithm with arguments for tuning n-gram size.
+        4. Test viability of different model dimensions n-gram x batch x vocab.
+        5. Set up Azure cloud instance for scaling project.
+        6. Test and implement model algorithm at scale.
+
+## Foreseeable Challenges
+
+Training RNN's can be resource intensive depending on the dimensions of the network and the scope of the training input. The size of the network is a function of the _vocabulary_ or unique set of words that can occur in context or be prediction outcomes, the size of the _n-gram_ (i.e. sentence length) to be modeled, and the _batch size_. The project input files have a vocabulary approaching 80,000 unique tokens in the post-cleaning versions. This presents a computing problem way beyond the capacity of most personal computers and certainly my laptop and requires that the algorithm be run on a cluster.
+
+To meet this challenge, I'll attempt to implement distributed computing algorithms applied on cloud computing platform. If this proves impractical, I may have to resort to working with a less resource intensive n-gram solution.
+
+In the field of NLP, sample data rarely covers the range of possible n-grams. To cope with the data sparsity, any model must also be able to cope with novel n-grams not present in the training input using probabilistic methods.
+
+
+
+# Conclusion
+
+The capstone assignment represents the intersection of several difficult data science challenges that the specialization has prepared us for. By first carefully implementing and testing a machine learning model at reduced scale, then training the production model at full-scale, I believe I can produce a next-word predictor that rapidly calculates the most likely next word with high accuracy.
+
