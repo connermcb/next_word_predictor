@@ -28,8 +28,8 @@ prepData <- function(path, seq_len=5, dict=NULL){
         
         num_seq <- (length(text_vec) - 1) %/% seq_len
         
-        features <- dict[text_vec[1:(seq_len * num_seq)]]
-        labels <- dict[text_vec[1:(seq_len * num_seq) + 1]]
+        features <- as.integer(rev_dict[text_vec[1:(seq_len * num_seq)]])
+        labels <- as.integer(rev_dict[text_vec[1:(seq_len * num_seq) + 1]])
         
         features_array <- array(features, dim = c(seq_len, num_seq))
         labels_array <- array(labels, dim = c(seq_len, num_seq))
