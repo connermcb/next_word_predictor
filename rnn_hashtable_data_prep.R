@@ -19,17 +19,17 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 # test that bucket actually has sentences
                 if( is.null(mtrx) ) next
                 if( nrow(mtrx) < 2 ) next
-                
+
                 X <- mtrx[, 1:(as.integer(bkt) - 1)]
                 Y <- mtrx[, 2:as.integer(bkt)]
 
                 samples <- nrow(mtrx)
                 
-                X_train_data <- X[1:as.integer(samples * train_val_fraction), ]
-                X_val_data <- X[-(1:as.integer(samples * train_val_fraction)), ]
+                X_train_data <- X[1:as.integer(samples * train_val_fraction), , drop = F]
+                X_val_data <- X[-(1:as.integer(samples * train_val_fraction)), , drop = F]
 
-                X_train_label <- Y[1:as.integer(samples * train_val_fraction), ]
-                X_val_label <- Y[-(1:as.integer(samples * train_val_fraction)), ]
+                X_train_label <- Y[1:as.integer(samples * train_val_fraction), , drop = F]
+                X_val_label <- Y[-(1:as.integer(samples * train_val_fraction)), , drop = F]
 
                 train_buckets[[bkt]] <- list(data = X_train_data,
                                            label = X_train_label)
@@ -44,4 +44,4 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 )
 }
 
-# test <- prepareBatches("twitter_hashtable.RData")
+test <- prepareBatches("twitter_hashtable.RData")
