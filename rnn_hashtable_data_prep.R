@@ -13,8 +13,12 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
 
         for( bkt in names(buckets)){
                 df <- as.data.frame(do.call(rbind, buckets[[bkt]]))
-                X <- df[1:(nrow(df) - 1)]
-                Y <- df[2:nrow(df)]
+                
+                # test that bucket actually has sentences
+                if( nrow(df) == 0 ) next
+                
+                X <- df[, 1:(as.integer(bkt) - 1)]
+                Y <- df[, 2:as.integer(bkt)]
                 
                 samples <- nrow(df)
                 
@@ -24,15 +28,14 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 X_train_label <- Y[1:as.integer(samples * train_val_fraction), ]
                 X_val_label <- Y[-(1:as.integer(samples * train_val_fraction)), ]
                 
-                train_buckets <- append(train_buckets, 
-                                        bkt = list(data = X_train_data,
-                                                    label = X_train_label))
+                train_buckets[bkt] <- list(data = X_train_data,
+                                           label = X_train_label)
                 
-                eval_buckets <- append(eval_buckets,
-                                       bkt = list(data = X_val_data,
-                                                 label = X_val_label))
+                eval_buckets[bkt] <- list(data = X_val_data,
+                                          label = X_val_label)
                 
-                print(dim(train_buckets))
+                print(length(train_buckets))
+                
         }
         return( list(train=train_buckets,
                      eval=eval_buckets
@@ -40,4 +43,4 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 )
 }
 
-prepareBatches("twitter_hashtable.RData")
+# prepareBatches("twitter_hashtable.RData")
