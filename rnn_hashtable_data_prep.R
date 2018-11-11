@@ -2,19 +2,16 @@
 # tokens into a format that can be used by the bucketter function from the mxnet package and 
 # fed into the mxnet rnn model.
 
-# load dictionaries
-load("unique_tokens_dict.RData")
-load("reverse_token_dict.RData")
 
 # function for reading data from environment hashtable and making it digestable by RNN batcher
-prepareBatches <- function( hashtable, dict=dict, rev_dict=rev_dict, train_val_fraction=0.9 ){
+prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
         # get prepared hashtable data
-        load( hashtable )
+        load( hashtable_name ) # loads as 'buckets'
         
         train_buckets <- list()
         eval_buckets <- list()
 
-        for( bkt in names(hashtable)){
+        for( bkt in names(buckets)){
                 df <- as.data.frame(do.call(rbind, buckets[[bkt]]))
                 X <- df[1:(nrow(df) - 1)]
                 Y <- df[2:nrow(df)]
@@ -35,7 +32,7 @@ prepareBatches <- function( hashtable, dict=dict, rev_dict=rev_dict, train_val_f
                                        bkt = list(data = X_val_data,
                                                  label = X_val_label))
                 
-                
+                print(dim(train_buckets))
         }
         return( list(train=train_buckets,
                      eval=eval_buckets
@@ -43,4 +40,4 @@ prepareBatches <- function( hashtable, dict=dict, rev_dict=rev_dict, train_val_f
                 )
 }
 
-vocab <- length(dict)
+prepareBatches("twitter_hashtable.RData")
