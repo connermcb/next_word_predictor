@@ -69,4 +69,11 @@ for( path in paths ){
         gc()
 }
 
+# assign integers and create reverse dictionary
+names(dict) <- 1:length(dict)
+rev_dict <- names(dict)
+names(rev_dict) <- dict
+
+# save dictionaries
 save(dict, file = "unique_tokens_dict.RData")
+save(rev_dict, file = "reverse_token_dict.RData")
