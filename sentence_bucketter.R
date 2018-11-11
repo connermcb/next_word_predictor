@@ -4,13 +4,15 @@
 library(tidytext)
 library(readr)
 library(quanteda)
-
-# load sample data
 setwd("c:/users/conner/jhopkins_data_science/capstone/final/")
+
+# load dictionaries
+load("unique_tokens_dict.RData")
+load("reverse_token_dict.RData")
 
 
 # function for bucketting sentences by number of tokens
-sentenceBucketter <- function(path){
+sentenceBucketter <- function(path, dict, rev_dict){
         
         # read file
         text_vec <- read_file(file = paste0("english_us/", path))        
@@ -55,7 +57,7 @@ sentenceBucketter <- function(path){
         # sort sentences (tokenized by word) to buckets 
         # based on number of words, i.e. sentence length
         system.time(
-        for(i in 1:len_token_vec){    #1:len_token_vec
+        for(i in 1:1){    #1:len_token_vec
 
                 # update progress bar
                 setTkProgressBar(pb, i, label=paste( round((i/len_token_vec)*100, 2),
@@ -71,6 +73,9 @@ sentenceBucketter <- function(path){
                 # filter very short or very long sentences
                 sent_len <- length(sentence)
                 if(sent_len < 3 | sent_len > 100) next
+
+                # change words to integers
+                sentence <- as.integer(rev_dict[sentence])
 
                 # throw sentence in bucket
                 rw <- nxt_slot[sent_len] # sent_len defines/indexes bucket
