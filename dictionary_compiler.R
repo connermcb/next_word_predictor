@@ -1,7 +1,7 @@
 # This script creates of dictionary of all unique tokens expected 
 # from the cleaning process that uses the `quanteda` package. It's difficult
 # to load the text data using the bucketter script in batches unless there 
-# is a existant unique token dictionary. 
+# is a existent unique token dictionary. 
 
 library(readr)
 library(quanteda)
@@ -11,12 +11,11 @@ library(tcltk)
 # load sample data
 paths <- c("en_US_blogs.txt", "en_US_news2.txt", "en_US_twitter.txt")
 setwd("c:/users/conner/jhopkins_data_science/capstone/final/english_us/")
-text_vec <- read_file(file = path)
 
 # instantiate unique tokens dictionary
-dict -> c()
+dict <- c()
 
-for( path in paths){
+for( path in paths ){
         
         # load file
         text_vec <- read_file(file = path) 
@@ -27,8 +26,8 @@ for( path in paths){
                            remove_twitter = TRUE, remove_url = TRUE, verbose = TRUE)
 
         # flatten tokenized text and change vector class to character from token
-        tokens_vec <- as.character(unlist(tokens))
-
+        tokens_vec <- as.character(tokens_vec[[1]])
+        
         # clean up and make space in memory
         rm(text_vec)
         gc()
@@ -36,8 +35,22 @@ for( path in paths){
         # check spelling and remove tokens not in hunspell dictionary
         spell_check <- hunspell_check(tokens_vec)
         tokens_vec <- tokens_vec[spell_check]
-
-        tokens_vec <- unique(tokens_vec)
         
-        dict <-  union(dict, tokens_vec)        
+        # clean up and free memory
+        rm(spell_check)
+        gc()
+        
+        # filter out one-letter 'words' except for I and a
+        one_word_test <- sapply(tokens_vec, function(tkn){nchar(tkn) > 1 | tkn %in% c('I', 'i', 'a', 'A')})
+        tokens_vec <- tokens_vec[one_word_test]
+        
+        # add unique tokens to dictionary
+        unique_tokens_per_file <- unique(tokens_vec)
+        dict <-  union(dict, tokens_vec)
+        
+        # clean up and open memory
+        rm(tokens_vec)
+        gc()
 }
+
+save(dict, file = "unique_tokens_dict")
