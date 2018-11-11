@@ -15,16 +15,16 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
 
                 # created dataframe from list of vectors under bkt in env hashtable
                 mtrx <- do.call(rbind, buckets[[bkt]])
-                
 
                 # test that bucket actually has sentences
-                if( nrow(mtrx) == 0 ) next
-
+                if( is.null(mtrx) ) next
+                if( nrow(mtrx) < 2 ) next
+                
                 X <- mtrx[, 1:(as.integer(bkt) - 1)]
                 Y <- mtrx[, 2:as.integer(bkt)]
 
                 samples <- nrow(mtrx)
-
+                
                 X_train_data <- X[1:as.integer(samples * train_val_fraction), ]
                 X_val_data <- X[-(1:as.integer(samples * train_val_fraction)), ]
 
