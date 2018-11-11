@@ -17,14 +17,22 @@ dict <- c()
 
 for( path in paths ){
         
+        print(paste("Now processing", path))
+        
         # load file
+        print("Reading file")
         text_vec <- read_file(file = path) 
+        print("Read file complete")
         
         # tokenize entire document by words, complete all cleaning (see args) in this step
+        print("Tokenizing")
         tokens_vec <- tokens(text_vec, what = "word", remove_numbers = TRUE,
                            remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE,
                            remove_twitter = TRUE, remove_url = TRUE, verbose = TRUE)
-
+        print("Tokenization complete")
+        
+        print("Cleaning and getting unique tokens")
+        
         # flatten tokenized text and change vector class to character from token
         tokens_vec <- as.character(tokens_vec[[1]])
         
@@ -48,12 +56,16 @@ for( path in paths ){
         one_word_test <- sapply(tokens_vec, function(tkn){nchar(tkn) > 1 | tkn %in% c('i', 'a')})
         tokens_vec <- tokens_vec[one_word_test]
         
+        print("Cleaning complete")
+        
         # add tokens from present file to dictionary
+        print("Compiling dictionary")
         dict <-  union(dict, tokens_vec)
+        print("Dictionary compilation complete")
+        print("")
         
         # clean up and open memory
         rm(tokens_vec)
-        rm(unique_tokens_per_file)
         gc()
 }
 
