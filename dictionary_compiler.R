@@ -32,6 +32,10 @@ for( path in paths ){
         rm(text_vec)
         gc()
         
+        # set case to lower and reduce vector to unique tokens for efficiency in later steps
+        tokens_vec <- tolower(tokens_vec)
+        tokens_vec <- unique(tokens_vec)
+        
         # check spelling and remove tokens not in hunspell dictionary
         spell_check <- hunspell_check(tokens_vec)
         tokens_vec <- tokens_vec[spell_check]
@@ -41,16 +45,16 @@ for( path in paths ){
         gc()
         
         # filter out one-letter 'words' except for I and a
-        one_word_test <- sapply(tokens_vec, function(tkn){nchar(tkn) > 1 | tkn %in% c('I', 'i', 'a', 'A')})
+        one_word_test <- sapply(tokens_vec, function(tkn){nchar(tkn) > 1 | tkn %in% c('i', 'a')})
         tokens_vec <- tokens_vec[one_word_test]
         
-        # add unique tokens to dictionary
-        unique_tokens_per_file <- unique(tokens_vec)
+        # add tokens from present file to dictionary
         dict <-  union(dict, tokens_vec)
         
         # clean up and open memory
         rm(tokens_vec)
+        rm(unique_tokens_per_file)
         gc()
 }
 
-save(dict, file = "unique_tokens_dict")
+save(dict, file = "unique_tokens_dict.RData")
