@@ -55,27 +55,27 @@ sentenceBucketter <- function(path){
         # sort sentences (tokenized by word) to buckets 
         # based on number of words, i.e. sentence length
         system.time(
-        for(i in 1:len_token_vec){
+        for(i in 1:len_token_vec){    #1:len_token_vec
 
                 # update progress bar
                 setTkProgressBar(pb, i, label=paste( round((i/len_token_vec)*100, 2),
                                                      "% done"))
                 #change class to character from token
-                sentence <- token_vec[i]
+                sentence <- unlist(token_vec[i])
 
                 # check spelling and remove tokens not in dictionary
                 sentence <- tolower(sentence)
                 spell_check <- hunspell_check(sentence)
                 sentence <- sentence[spell_check]
-                
+
                 # filter very short or very long sentences
                 sent_len <- length(sentence)
-                if(sent_len < 4 | sent_len > 100) next
-                
+                if(sent_len < 3 | sent_len > 100) next
+
                 # throw sentence in bucket
                 rw <- nxt_slot[sent_len] # sent_len defines/indexes bucket
                 nxt_slot[sent_len] <- (rw + 1)
-                bkt <- as.character(bkt) # assign bucket based on n tokens
+                bkt <- as.character(sent_len) # assign bucket based on n tokens
                 buckets[[bkt]][[rw]] <- sentence
         })
         
@@ -95,7 +95,7 @@ sentenceBucketter <- function(path){
 
 paths <- c("en_US_blogs.txt", "en_US_news2.txt", "en_US_twitter.txt")
 
-for( p in paths[1:2] ){
+for( p in paths[3:3] ){
         sentenceBucketter(p)
 }
 
