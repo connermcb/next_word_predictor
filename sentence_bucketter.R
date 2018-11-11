@@ -37,26 +37,33 @@ dict <- c()
 buckets <- new.env()
 
 for(bkt in as.character(seq_len(100))){
-        assign(bkt, vector("list", length = 0), envir = buckets)
+        assign(bkt, vector("list", length = 1000), envir = buckets)
 } 
+
+nxt_slot <- rep(1, 100)
 
 # sort sentences (tokenized by word) to buckets 
 # based on number of words, i.e. sentence length
-for(i in 1:3){
+system.time(
+for(i in 1:100){
+        if (i %% 10 == 0){
+                msg <- paste0(i, "% of sentences complete.")
+                print(msg)
+        }
         #change class to character from token
-        sentence <- as.character(token_vec[i])
+        sentence <- token_list[[i]]
+        
+        if(length(sentence) < 4) next
         
         # check spelling and remove tokens not in dictionary
         spell_check <- hunspell_check(sentence)
         sentence <- tolower(sentence[spell_check])
-        
-        # add new words to dictionary
-        dict <- union(dict, sentence)
-        
+
         # throw sentence in bucket
         bkt <- length(sentence)
+        rw <- nxt_slot[bkt]
+        nxt_slot[bkt] <- (rw + 1)
         bkt <- as.character(bkt) # assign bucket based on n tokens
-        rw <- length(buckets[[bkt]]) + 1 # create new space in list (bad idea programmatically i know)
         buckets[[bkt]][[rw]] <- sentence
 }
-
+)
