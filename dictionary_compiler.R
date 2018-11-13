@@ -26,9 +26,26 @@ for( path in paths ){
         
         # tokenize entire document by words, complete all cleaning (see args) in this step
         print("Tokenizing")
-        tokens_vec <- tokens(text_vec, what = "word", remove_numbers = TRUE,
+
+        # split text file into sentences
+        sent_vec <- tokens(text_vec, what = "sentence", remove_numbers = TRUE,
                            remove_punct = TRUE, remove_symbols = TRUE, remove_separators = TRUE,
                            remove_twitter = TRUE, remove_url = TRUE, verbose = TRUE)
+        
+        # clean and free up memory
+        rm(text_vec)
+        gc()
+        
+        # tokenize words by sentence, result is vector of vectors
+        token_vec <- tokens(sent_vec[[1]], what = "word", verbose = TRUE,
+                            remove_punct = TRUE, remove_numbers = TRUE,
+                            remove_twitter = TRUE, remove_url = TRUE,
+                            remove_symbols = TRUE, remove_separators = TRUE)
+        
+        # clean and free up memory
+        rm(sent_vec)
+        gc()
+        
         print("Tokenization complete")
         
         print("Cleaning and getting unique tokens")
