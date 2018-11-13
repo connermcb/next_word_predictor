@@ -31,6 +31,12 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 X_train_label <- Y[1:as.integer(samples * train_val_fraction), , drop = F]
                 X_val_label <- Y[-(1:as.integer(samples * train_val_fraction)), , drop = F]
 
+                # cope with single row matrices (temporary solution, information loss!)
+                if( head(dim(X_train_data), 1) < 2) next
+
+                print(bkt)
+                print(dim(X_train_data))
+                      
                 train_buckets[[bkt]] <- list(data = X_train_data,
                                            label = X_train_label)
 
@@ -44,4 +50,4 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 )
 }
 
-test <- prepareBatches("twitter_hashtable.RData")
+# test <- prepareBatches("twitter_hashtable.RData")
