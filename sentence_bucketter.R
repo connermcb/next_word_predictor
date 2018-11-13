@@ -57,7 +57,7 @@ sentenceBucketter <- function(path, dict, rev_dict){
         # sort sentences (tokenized by word) to buckets 
         # based on number of words, i.e. sentence length
         system.time(
-        for(i in 1:1){    #1:len_token_vec
+        for(i in 1:len_token_vec){    #1:len_token_vec
 
                 # update progress bar
                 setTkProgressBar(pb, i, label=paste( round((i/len_token_vec)*100, 2),
@@ -69,6 +69,10 @@ sentenceBucketter <- function(path, dict, rev_dict){
                 sentence <- tolower(sentence)
                 spell_check <- hunspell_check(sentence)
                 sentence <- sentence[spell_check]
+
+                # filter out one-letter 'words' except for I and a
+                one_word_test <- sapply(tokens_vec, function(tkn){nchar(tkn) > 1 | tkn %in% c('i', 'a')})
+                tokens_vec <- tokens_vec[one_word_test]
 
                 # filter very short or very long sentences
                 sent_len <- length(sentence)
@@ -101,6 +105,6 @@ sentenceBucketter <- function(path, dict, rev_dict){
 paths <- c("en_US_blogs.txt", "en_US_news2.txt", "en_US_twitter.txt")
 
 for( p in paths[3:3] ){
-        sentenceBucketter(p)
+        sentenceBucketter(p, dict, rev_dict)
 }
 
