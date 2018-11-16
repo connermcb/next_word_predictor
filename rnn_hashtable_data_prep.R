@@ -6,7 +6,7 @@
 # function for reading data from environment hashtable and making it digestable by RNN batcher
 prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
         # get prepared hashtable data
-        load( hashtable_name ) # loads as 'buckets'
+        load( hashtable ) # loads as 'buckets'
         
         train_buckets <- list()
         eval_buckets <- list()
@@ -15,6 +15,11 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
 
                 # created dataframe from list of vectors under bkt in env hashtable
                 mtrx <- do.call(rbind, buckets[[bkt]])
+                
+                # transpose - for some reason it looks like mxnet reads sentences as columns
+                # instead of rows. Untransposed matrix causing error when mxnet tries to batch
+                # by column instead of by row.
+                mtrx <- t(mtrx)
 
                 # test that bucket actually has sentences
                 if( is.null(mtrx) ) next
@@ -34,9 +39,6 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 # cope with single row matrices (temporary solution, information loss!)
                 if( head(dim(X_train_data), 1) < 2) next
 
-                print(bkt)
-                print(dim(X_train_data))
-                      
                 train_buckets[[bkt]] <- list(data = X_train_data,
                                            label = X_train_label)
 
@@ -50,4 +52,5 @@ prepareBatches <- function( hashtable, train_val_fraction=0.9 ){
                 )
 }
 
-# test <- prepareBatches("twitter_hashtable.RData")
+test <- prepareBatches("twitter_hashtable.RData")
+
