@@ -34,17 +34,15 @@ for( path in paths ){
         
         # clean and free up memory
         rm(text_vec)
-        gc()
         
         # tokenize words by sentence, result is vector of vectors
-        token_vec <- tokens(sent_vec[[1]], what = "word", verbose = TRUE,
+        tokens_vec <- tokens(sent_vec[[1]], what = "word", verbose = TRUE,
                             remove_punct = TRUE, remove_numbers = TRUE,
                             remove_twitter = TRUE, remove_url = TRUE,
                             remove_symbols = TRUE, remove_separators = TRUE)
         
         # clean and free up memory
         rm(sent_vec)
-        gc()
         
         print("Tokenization complete")
         
@@ -55,7 +53,6 @@ for( path in paths ){
         
         # clean up and make space in memory
         rm(text_vec)
-        gc()
         
         # set case to lower and reduce vector to unique tokens for efficiency in later steps
         tokens_vec <- tolower(tokens_vec)
@@ -67,11 +64,13 @@ for( path in paths ){
         
         # clean up and free memory
         rm(spell_check)
-        gc()
         
         # filter out one-letter 'words' except for I and a
         one_word_test <- sapply(tokens_vec, function(tkn){nchar(tkn) > 1 | tkn %in% c('i', 'a')})
         tokens_vec <- tokens_vec[one_word_test]
+        
+        # clean up and free memory
+        rm(one_word_test)
         
         print("Cleaning complete")
         
