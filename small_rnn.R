@@ -1,66 +1,85 @@
 ## Small-scale test of neural network approach
 
 # packages and source files
-library("readr")
-library("stringr")
-library("stringi")
-library("mxnet")
-source("rnn_data_prep.R")  # source file for prepData()
+library(readr)
+library(stringr)
+library(stringi)
+library(mxnet)
+
 
 # set working directory
-setwd("c:/users/conner/jhopkins_data_science/capstone/final/")
+# setwd("c:/users/conner/jhopkins_data_science/capstone/final/")
 
-# assign args for prepData()
-path <- "blog_sample.txt"
-seq_len <- 10
+# # assign args for prepData()
+# path <- "blog_sample.txt"
+# seq_len <- 10
+# 
+# # get prepared data
+# source("rnn_data_prep.R")  # source file for prepData()
+# prepdData <- prepData(path = path, seq_len = seq_len, dict = NULL)
+# 
+# X <- prepdData$features_array
+# Y <- prepdData$labels_array
+# # 
+# dict <- prepdData$dict
+# rev_dict <- prepdData$rev_dict
+# # 
+# vocab <- length(dict)
+# # 
+# samples <- tail(dim(X), 1)
+# # 
+# train_val_fraction <- 0.9
+# # 
+# X_train_data <- X[, 1:as.integer(samples * train_val_fraction)]
+# X_val_data <- X[, -(1:as.integer(samples * train_val_fraction))]
+# # 
+# X_train_label <- Y[, 1:as.integer(samples * train_val_fraction)]
+# X_val_label <- Y[, -(1:as.integer(samples * train_val_fraction))]
+# # 
+# train_buckets <- list("10" = list(data = X_train_data,
+#                                   label = X_train_label))
+# 
+# eval_buckets <- list("10" = list(data = X_val_data,
+#                                  label = X_val_label))
+# 
+# train_buckets <- list(buckets = train_buckets,
+#                       dict = dict, rev_dict = rev_dict)
+# 
+# eval_buckets <- list(buckets = eval_buckets,
+#                      dict = dict, rev_dict = rev_dict)
 
-# get prepared data
-prepdData <- prepData(path = path, seq_len = seq_len, dict = NULL)
 
-X <- prepdData$features_array
-Y <- prepdData$labels_array
+# load dictionaries
+load("unique_tokens_dict.RData") # loads as  dict
+load("reverse_token_dict.RData") # loads as rev_dict
 
-dict <- prepdData$dict
-rev_dict <- prepdData$rev_dict
+# get training and eval data
+source("rnn_hashtable_data_prep.R")
+hashtable_name <- "twitter_hashtable.RData"
+prepData <- prepareBatches( hashtable_name ) # returns train and eval
 
-vocab <- length(dict)
+train_buckets <- prepData$train
+eval_buckets <- prepData$eval
 
-samples <- tail(dim(X), 1)
-
-train_val_fraction <- 0.9
-
-X_train_data <- X[, 1:as.integer(samples * train_val_fraction)]
-X_val_data <- X[, -(1:as.integer(samples * train_val_fraction))]
-
-X_train_label <- Y[, 1:as.integer(samples * train_val_fraction)]
-X_val_label <- Y[, -(1:as.integer(samples * train_val_fraction))]
-
-train_buckets <- list("10" = list(data = X_train_data,
-                                  label = X_train_label))
-
-eval_buckets <- list("10" = list(data = X_val_data,
-                                 label = X_val_label))
-
-train_buckets <- list(buckets = train_buckets, 
+train_buckets <- list(buckets = train_buckets,
                       dict = dict, rev_dict = rev_dict)
 
 eval_buckets <- list(buckets = eval_buckets,
                      dict = dict, rev_dict = rev_dict)
 
 
-
 # create iterators for training and evaluation datasets
-vocab <- length(eval_buckets$dict)
+vocab <- length(dict)
 
 batch_size <- 32
 
 train_data <- mx.io.bucket.iter(buckets = train_buckets$buckets,
-                                batch.size = batch_size, 
-                                data.mask.element = 0, shuffle = TRUE)
+                                batch.size = batch_size, seed = 3428,
+                                data.mask.element = 0, shuffle = T)
 
 eval_data <- mx.io.bucket.iter(buckets = eval_buckets$buckets,
-                               batch.size = batch_size,
-                               data.mask.element = 0, shuffle = TRUE)
+                               batch.size = batch_size, seed = 3428,
+                               data.mask.element = 0, shuffle = T)
 
 
 # create model architecture
